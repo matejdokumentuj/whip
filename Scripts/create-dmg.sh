@@ -3,7 +3,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 APP="build/Whip.app"
-DMG="build/Whip-1.0.0.dmg"
+VERSION=$(grep "let APP_VERSION" Sources/WhipApp.swift | sed 's/.*"\(.*\)".*/\1/')
+DMG="build/Whip-${VERSION}.dmg"
 
 if [ ! -d "$APP" ]; then
     echo "Build the app first: bash Scripts/build.sh"
