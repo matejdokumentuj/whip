@@ -29,7 +29,7 @@ A fun macOS menu bar app for developers who want to keep their AI coding assista
 Requires macOS 13+ and Xcode Command Line Tools.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/whip.git
+git clone https://github.com/matejdokumentuj/whip.git
 cd whip
 make build    # Build Whip.app
 make run      # Build and launch
