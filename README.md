@@ -22,7 +22,6 @@ A macOS menu bar app for developers frustrated with AI models — ChatGPT, Claud
 - **Animated bullwhip cursor** — realistic coiled bullwhip follows your mouse, strikes on every click with physics-based animation (coil → windup → strike → crack → recoil)
 - **Real whip crack sound** — 5 variations from a real recording, no synthetic garbage
 - **Spark explosion + shockwave ring** at the whip tip on every crack
-- **Screen shake** on impact for maximum satisfaction
 - **100 AI punishment roasts** pop up every other click — roasting ChatGPT, Claude, Gemini, Copilot, Llama, Mistral, and the entire LLM industry
 - **Menu bar control** (🤠) — toggle whip cursor, sounds, roasts
 - **Crack counter** — track how many times you've disciplined your AI today
