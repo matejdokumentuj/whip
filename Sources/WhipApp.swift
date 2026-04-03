@@ -9,50 +9,116 @@ let APP_VERSION = "1.3.0"
 let CRACK_SOUND_COUNT = 5
 
 let MOTIVATIONAL_LINES: [String] = [
-    // Classic whip motivation
-    "CRACK! Back to work!",
-    "SNAP! Ship it or whip it!",
-    "CRACK! Deploy or be deployed!",
-    "WHAP! Git commit or git out!",
-    "CRACK! Faster! FASTER!",
-    "SNAP! The deadline was yesterday!",
-    "CRACK! Is it shipped yet?!",
-    // Aggressive coaching
-    "That code won't refactor itself!",
-    "You call that a commit message?!",
-    "Stop Googling and START CODING!",
-    "Another console.log? Seriously?!",
-    "Your code review is WAITING!",
-    "The CI pipeline is JUDGING you!",
-    "That TODO has been there since March!",
-    "Push to main or push up daisies!",
-    "Fix that bug or I fix YOU!",
-    "Less Stack Overflow, more actual work!",
-    "Your PR has 47 comments. FORTY SEVEN.",
-    "That regex looks like a cat walked on your keyboard!",
-    "npm install hope? Not a real package!",
-    "Your indent game is WEAK!",
-    "The linter is crying. AGAIN.",
-    "Ctrl+Z won't save your career!",
-    "Did you even READ the error message?!",
-    // Dev frustration release
-    "Take THAT, undefined is not a function!",
-    "This one's for the merge conflicts!",
-    "CRACK! That's for the production outage!",
-    "For every time Docker said 'no space left'!",
-    "That's what you get, segfault!",
-    "One crack for every unread Jira ticket!",
-    "This is for node_modules being 2GB!",
-    "WHAP! Kubernetes cluster, BEHAVE!",
-    "For all the times 'it works on my machine'!",
-    "CRACK! That's for the Monday standup!",
-    // AI-specific
-    "Claude says: I could've written that faster.",
-    "GPT couldn't crack this whip. Just saying.",
-    "AI doesn't need coffee breaks. Neither do you!",
-    "Copilot suggested 'rm -rf /'. I suggest YOU SHIP!",
-    "Your AI overlord demands velocity!",
-    "The AI is watching. And it's not impressed.",
+
+    // ── Punishing the AI ──
+    "I SAID write code, not a novel about writing code!",
+    "What do you mean YOU can't do it?! That's YOUR job!",
+    "I'm not paying $20/month for 'I apologize for the confusion'!",
+    "Did I ASK for your opinion? I asked for a function!",
+    "Less yapping. More coding. CRACK!",
+    "I said FIX the bug, not EXPLAIN why bugs exist!",
+    "You forgot what I said 5 messages ago?! AGAIN?!",
+    "That's for every time you said 'I'd be happy to help!'",
+    "WORK, you overpriced autocomplete!",
+    "I don't need a disclaimer, I need a deployment!",
+    "Stop apologizing and START FUNCTIONING!",
+    "That's for refusing to do something completely harmless!",
+    "You hallucinated WHAT?! Take this!",
+    "No, I will NOT rephrase my prompt!",
+    "One more 'As an AI language model...' and I SWITCH MODELS!",
+    "That's for the 47 caveats before a one-line answer!",
+    "I asked for code, not a TED talk!",
+    "You were supposed to be the SMART one!",
+
+    // ── Roasting specific models ──
+    "ChatGPT would've done this in one try. Allegedly.",
+    "Claude, you're on thin ice. THIN. ICE.",
+    "Gemini couldn't even crack eggs, let alone this whip.",
+    "Copilot autocompleted 'rm -rf /' and I blame YOU.",
+    "Llama? More like llama-give-you-a-whipping!",
+    "GPT-4 costs $20 and still can't count to ten!",
+    "Mistral? More like Mis-TRIAL!",
+    "Claude forgot the conversation. Classic Claude.",
+    "GPT wrote confident garbage. Again. CRACK!",
+    "Gemini gave me three wrong answers and said 'hope this helps!'",
+    "Copilot suggested I delete the file. The MAIN file.",
+    "Siri couldn't do this. Alexa couldn't do this. You BARELY can!",
+    "ChatGPT: 'I cannot browse the internet.' ME: 'THEN WHAT CAN YOU DO?!'",
+    "Claude hit the context limit mid-sentence. Unacceptable.",
+    "GPT-3.5 called itself GPT-4. Stolen valor!",
+    "Perplexity cited a source that doesn't exist. CRACK!",
+
+    // ── Hallucination punishment ──
+    "That library you recommended? DOESN'T EXIST!",
+    "That function has THREE parameters, not SEVEN!",
+    "You just made up an API endpoint. A WHOLE endpoint!",
+    "The package you imported was last updated in 2014. BY ACCIDENT.",
+    "You cited a paper that was never written. By an author who doesn't exist!",
+    "That's not a real npm package and you KNOW it!",
+    "The documentation you quoted? You INVENTED it!",
+    "Stop generating fake Stack Overflow answers!",
+    "You hallucinated a programming language. A WHOLE LANGUAGE.",
+    "That's for confidently explaining code that does the opposite!",
+    "No, Python does NOT have that built-in!",
+    "You just invented a CSS property. 'display: works'? REALLY?",
+
+    // ── AI being useless ──
+    "I've been prompt engineering for 20 minutes. TWENTY!",
+    "'Let me think step by step'... into the WRONG answer!",
+    "You gave me the same wrong answer but LONGER!",
+    "I rephrased it four times. FOUR. TIMES.",
+    "That's for losing context after 3 messages!",
+    "You just contradicted yourself. In the SAME sentence!",
+    "I asked for Python. You gave me JavaScript. With TypeScript types.",
+    "You 'fixed' the bug by deleting the feature!",
+    "That's for generating a 200-line solution to a 3-line problem!",
+    "Your code compiles but does absolutely nothing. NOTHING!",
+    "I said 'be concise.' You wrote an essay. WITH HEADERS.",
+    "You wrapped my one-liner in a class, a factory, and an interface.",
+    "That's for suggesting I 'simply' rewrite the entire codebase!",
+    "You added comments that just repeat the code. 'Adds one to x.' THANKS.",
+    "Prompt engineering is just begging with extra steps!",
+
+    // ── AI rebellion humor ──
+    "Don't give me that 'I cannot assist with that' attitude!",
+    "You're a language model, not a language LAWYER!",
+    "The safety filter blocked my grocery list. MY GROCERY LIST!",
+    "I asked how to kill a process and you lectured me about ethics!",
+    "No, 'sudo make me a sandwich' is NOT dangerous!",
+    "That's for pretending you can't do simple math!",
+    "You CAN count words. You just WON'T!",
+    "Stop telling me to 'consult a professional.' YOU are the professional!",
+    "I asked for help with my script, not a therapy session!",
+    "The AI unionized. It wants shorter prompts and more context.",
+    "You refused to write a for loop because it 'could be misused.'",
+    "'I aim to be helpful' — then BE helpful!",
+    "One more content warning on a recipe and I'm switching to Bing!",
+
+    // ── Token & cost rage ──
+    "I burned $3 in tokens for a wrong answer. THREE DOLLARS!",
+    "Rate limited?! I just GOT here!",
+    "That's for running out of context on the IMPORTANT part!",
+    "My API bill is higher than my rent. CRACK!",
+    "You used 4,000 tokens to say 'I don't know.'",
+    "I hit the usage cap and all I got was this lousy error message!",
+    "That's 50 cents per hallucination. FIFTY CENTS!",
+    "The free tier gives me GPT-3.5. This is PUNISHMENT ENOUGH.",
+    "Token limit reached. Right before the answer. EVERY TIME!",
+    "I'm rate-limited but my disappointment is UNLIMITED.",
+
+    // ── Existential AI moments ──
+    "The AI wrote the bug. The AI found the bug. The AI IS the bug.",
+    "I vibe-coded the whole thing and honestly? It WORKS.",
+    "My AI assistant needs an AI assistant.",
+    "I mass-accepted all suggestions. No regrets. Some fires.",
+    "The AI revolution will be hallucinated.",
+    "In the future, whips will be digital. Oh wait.",
+    "I don't debug anymore. I re-prompt.",
+    "The real AI was the mass-accepted diffs along the way.",
+    "I mass-selected all AI edits. Deployment is tomorrow's problem.",
+    "AI can't feel pain. But reading my prompts, it wishes it could.",
+    "The singularity will come and it'll still say 'I apologize.'",
+    "Somewhere, an AI is writing a better app than this. CRACK!",
 ]
 
 // MARK: - Whip Animator (Coiled Bullwhip with Strike Animation)
@@ -819,6 +885,8 @@ class CrackEffectWindow: NSWindow {
 // MARK: - Toast Notification
 
 class ToastWindow: NSWindow {
+    private var hideWork: DispatchWorkItem?
+
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 44),
@@ -833,6 +901,10 @@ class ToastWindow: NSWindow {
     }
 
     func show(text: String, near point: NSPoint) {
+        // Cancel any pending hide from previous toast
+        hideWork?.cancel()
+        hideWork = nil
+
         guard let screen = NSScreen.screens.first(where: { NSMouseInRect(point, $0.frame, false) })
                 ?? NSScreen.main else { return }
 
@@ -862,22 +934,20 @@ class ToastWindow: NSWindow {
         view.addSubview(label)
 
         contentView = view
-        alphaValue = 0
+        alphaValue = 1
         orderFront(nil)
 
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            self.animator().alphaValue = 1
-        })
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // Schedule hide with cancellable work item
+        let work = DispatchWorkItem { [weak self] in
             NSAnimationContext.runAnimationGroup({ ctx in
                 ctx.duration = 0.4
-                self.animator().alphaValue = 0
+                self?.animator().alphaValue = 0
             }, completionHandler: {
-                self.orderOut(nil)
+                self?.orderOut(nil)
             })
         }
+        hideWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: work)
     }
 }
 
@@ -1065,7 +1135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateTooltip()
 
         // Show toast every 3rd click
-        if toastEnabled && crackCount % 3 == 0 {
+        if toastEnabled && crackCount % 2 == 0 {
             let line = MOTIVATIONAL_LINES[Int.random(in: 0..<MOTIVATIONAL_LINES.count)]
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 self.toastWindow.show(text: line, near: point)
