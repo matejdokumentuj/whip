@@ -119,6 +119,7 @@ let MOTIVATIONAL_LINES: [String] = [
     "AI can't feel pain. But reading my prompts, it wishes it could.",
     "The singularity will come and it'll still say 'I apologize.'",
     "Somewhere, an AI is writing a better app than this. CRACK!",
+    "Buy this for 99 cents so I can stop building my stupid SaaS!",
 ]
 
 // MARK: - Whip Animator (Coiled Bullwhip with Strike Animation)
@@ -1065,6 +1066,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let statsItem = NSMenuItem(title: "Cracks: 0", action: nil, keyEquivalent: "")
         statsItem.tag = 100; statsItem.isEnabled = false; menu.addItem(statsItem)
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Feed the Indie Dev 🌮", action: #selector(openSupport), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "About Whip", action: #selector(showAbout), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -1134,8 +1136,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: \(crackCount)" }
         updateTooltip()
 
-        // Show toast every 3rd click
-        if toastEnabled && crackCount % 2 == 0 {
+        // Every 20th crack: funny support nudge
+        if toastEnabled && crackCount % 20 == 0 && crackCount > 0 {
+            let supportLines = [
+                "Buy this for 99 cents so I can stop building my stupid SaaS!",
+                "\(crackCount) cracks! You clearly love this. Feed the dev? 🌮",
+                "This whip is free. My rent is not. Just saying.",
+                "You've cracked \(crackCount) times. That's mass assault on AI. Tip your whipmaker?",
+                "Open source = mass free labor. A taco would be nice though. 🌮",
+                "I mass-coded this at 3 AM. A coffee mass-helps. ☕",
+            ]
+            let line = supportLines[Int.random(in: 0..<supportLines.count)]
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                self.toastWindow.show(text: line, near: point)
+            }
+        }
+        // Normal roasts every 2nd crack (skip if support message shown)
+        else if toastEnabled && crackCount % 2 == 0 {
             let line = MOTIVATIONAL_LINES[Int.random(in: 0..<MOTIVATIONAL_LINES.count)]
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 self.toastWindow.show(text: line, near: point)
@@ -1148,6 +1165,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let player = audioPlayers[Int.random(in: 0..<audioPlayers.count)]
         player.currentTime = 0
         player.play()
+    }
+
+    @objc func openSupport() {
+        if let url = URL(string: "https://ko-fi.com/matejdokumentuj") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc func quit() { disable(); NSApplication.shared.terminate(nil) }

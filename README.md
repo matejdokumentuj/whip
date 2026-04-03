@@ -109,6 +109,19 @@ Yes. Your colleagues will hear the cracks and see the sparks. Assert dominance o
 **Which AI models does it roast?**
 All of them. ChatGPT, Claude, Gemini, Copilot, Llama, Mistral, Perplexity — nobody is safe.
 
+## Feed the Developer
+
+This app is free. My rent is not.
+
+If this whip made you laugh, mass-crack your wallet open:
+
+- [**Ko-fi**](https://ko-fi.com/matejdokumentuj) — Buy me a taco. Or don't. The whip is free either way.
+- [**GitHub Sponsors**](https://github.com/sponsors/matejdokumentuj) — For those who want to feel fancy about giving $3.
+
+No subscriptions. No paywalls. No guilt. Just a mass-caffeinated indie dev who builds dumb stuff at 3 AM instead of sleeping.
+
+> "Buy this for 99 cents so I can stop building my stupid SaaS!" — actual in-app quote
+
 ## Uninstall
 
 1. Click 🤠 → Quit
