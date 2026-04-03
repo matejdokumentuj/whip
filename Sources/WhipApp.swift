@@ -5,7 +5,7 @@ import CoreImage
 // MARK: - Configuration
 
 let APP_NAME = "Whip"
-let APP_VERSION = "1.2.0"
+let APP_VERSION = "1.3.0"
 let CRACK_SOUND_COUNT = 5
 
 let MOTIVATIONAL_LINES: [String] = [
@@ -81,11 +81,16 @@ class WhipAnimator {
 
     // Whip dimensions
     let totalLength: CGFloat = 210
-    let coilRadius: CGFloat = 22
-    let coilLoops: CGFloat = 2.2
 
     // Tip speed tracking for motion blur
     var tipSpeed: CGFloat = 0
+
+    // Screen shake
+    var shakeOffset: CGPoint = .zero
+    var shakeIntensity: CGFloat = 0
+
+    // Elastic recoil bounce
+    var recoilBounce: CGFloat = 0
 
     init(origin: CGPoint) {
         mousePos = origin
@@ -138,11 +143,14 @@ class WhipAnimator {
             if stateTime >= strikeTime {
                 state = .cracking
                 stateTime = 0
+                // Trigger screen shake on crack
+                shakeIntensity = 6.0
             }
         case .cracking:
             if stateTime >= crackHoldTime {
                 state = .recoiling
                 stateTime = 0
+                recoilBounce = 1.0
             }
         case .recoiling:
             if stateTime >= recoilTime {
@@ -151,29 +159,71 @@ class WhipAnimator {
             }
         }
 
+        // Update screen shake (decays quickly)
+        if shakeIntensity > 0.1 {
+            shakeOffset = CGPoint(
+                x: CGFloat.random(in: -shakeIntensity...shakeIntensity),
+                y: CGFloat.random(in: -shakeIntensity...shakeIntensity)
+            )
+            shakeIntensity *= 0.75
+        } else {
+            shakeOffset = .zero
+            shakeIntensity = 0
+        }
+
+        // Update recoil bounce (damped oscillation)
+        if recoilBounce > 0.01 {
+            recoilBounce *= 0.92
+        } else {
+            recoilBounce = 0
+        }
+
         // Calculate target positions and move toward them
         let targets = calculateTargets()
 
-        // Spring stiffness varies by state
-        let spring: CGFloat
-        let damp: CGFloat
+        // Spring stiffness varies by state — striking has progressive wave
+        let baseSpring: CGFloat
+        let baseDamp: CGFloat
         switch state {
         case .coiled:
-            spring = 0.14; damp = 0.78
+            baseSpring = 0.14; baseDamp = 0.78
         case .winding:
-            spring = 0.35; damp = 0.70
+            baseSpring = 0.38; baseDamp = 0.68
         case .striking:
-            spring = 0.50; damp = 0.72
+            baseSpring = 0.55; baseDamp = 0.70
         case .cracking:
-            spring = 0.20; damp = 0.80
+            baseSpring = 0.22; baseDamp = 0.80
         case .recoiling:
-            spring = 0.12; damp = 0.82
+            baseSpring = 0.10; baseDamp = 0.84
         }
 
         var maxSpeed: CGFloat = 0
         for i in 0..<segmentCount {
+            let t = CGFloat(i) / CGFloat(segmentCount - 1)
             let dx = targets[i].x - positions[i].x
             let dy = targets[i].y - positions[i].y
+
+            // S-curve wave propagation: handle responds first, tip lags
+            var spring = baseSpring
+            var damp = baseDamp
+            if state == .striking {
+                let waveFront = stateTime / strikeTime * 1.6
+                let segPhase = t
+                let waveInfluence = clamp(waveFront - segPhase, 0, 1)
+                spring = baseSpring * (0.3 + 0.7 * waveInfluence)
+                // Tip segments accelerate (energy concentration like real whip)
+                if t > 0.7 {
+                    spring *= 1.0 + (t - 0.7) / 0.3 * 0.8
+                }
+            }
+
+            // Elastic bounce during recoil
+            if state == .recoiling && recoilBounce > 0.01 {
+                let bounceOffset = sin(stateTime * 18 + t * 4) * recoilBounce * 3.0 * (1.0 - t)
+                velocities[i].x += bounceOffset * 0.3
+                velocities[i].y += bounceOffset * 0.2
+            }
+
             velocities[i].x = (velocities[i].x + dx * spring) * damp
             velocities[i].y = (velocities[i].y + dy * spring) * damp
             positions[i].x += velocities[i].x
@@ -197,49 +247,77 @@ class WhipAnimator {
             }
 
         case .winding:
-            // Pull back slightly before strike
+            // Pull back slightly before strike — the arm draws back
             let progress = easeInQuad(min(1, stateTime / windupTime))
-            let pullBack: CGFloat = 12
-            let windupOffset = CGPoint(
-                x: -cos(strikeAngle) * pullBack * progress,
-                y: -sin(strikeAngle) * pullBack * progress
-            )
-            let windupMouse = CGPoint(x: mousePos.x + windupOffset.x, y: mousePos.y + windupOffset.y)
+            let pullBack: CGFloat = 15
             for i in 0..<segmentCount {
-                let coiled = coiledPosition(index: i, mouse: mousePos, phase: idlePhase)
-                // Tighten coil slightly during windup
-                let tightened = CGPoint(
-                    x: coiled.x + windupOffset.x * 0.5,
-                    y: coiled.y + windupOffset.y * 0.5
+                let t = CGFloat(i) / CGFloat(segmentCount - 1)
+                let hanging = coiledPosition(index: i, mouse: mousePos, phase: idlePhase)
+                // Pull the whole whip backward opposite to strike direction
+                // Handle moves most, tip follows with delay (inertia)
+                let influence = 1.0 - t * 0.6  // handle: full pullback, tip: 40%
+                let target = CGPoint(
+                    x: hanging.x - cos(strikeAngle) * pullBack * progress * influence,
+                    y: hanging.y - sin(strikeAngle) * pullBack * progress * influence + t * 8 * progress  // tip lifts up slightly
                 )
-                targets[i] = tightened
+                targets[i] = target
             }
 
         case .striking:
             let progress = stateTime / strikeTime  // 0 to 1
             for i in 0..<segmentCount {
                 let t = CGFloat(i) / CGFloat(segmentCount - 1)
-                // Per-segment delay: handle moves first, tip follows with acceleration
-                let segDelay = t * 0.5
-                let segProgress = clamp(progress * 2.2 - segDelay, 0, 1)
-                // Tip segments have extra acceleration (energy concentration)
-                let easedProgress = t > 0.6 ? easeInQuad(segProgress) : easeOutCubic(segProgress)
+                // S-curve wave: energy propagates handle→tip with acceleration
+                // Handle moves immediately, mid-section follows, tip whips last but fastest
+                let waveFront = progress * 1.6  // wave travels faster than overall progress
+                let segDelay = t * t * 0.6  // quadratic delay = tip lags more initially
+                let segProgress = clamp(waveFront - segDelay, 0, 1)
+
+                // Energy concentration at tip: last 30% accelerates dramatically
+                let easedProgress: CGFloat
+                if t > 0.7 {
+                    // Tip whip: slow start then explosive snap
+                    let tipFactor = (t - 0.7) / 0.3
+                    let explosive = easeInQuad(segProgress) * (1.0 + tipFactor * 0.5)
+                    easedProgress = min(1.0, explosive)
+                } else if t > 0.3 {
+                    // Mid-section: smooth follow-through
+                    easedProgress = easeOutCubic(segProgress)
+                } else {
+                    // Handle: leads the motion
+                    easedProgress = easeOutCubic(segProgress * 1.1)
+                }
 
                 let coiled = coiledPosition(index: i, mouse: mousePos, phase: idlePhase)
                 let extended = extendedPosition(index: i, mouse: mousePos)
-                targets[i] = lerpPoint(coiled, extended, easedProgress)
+
+                // S-curve lateral displacement: whip bows out before snapping straight
+                let lateralWave = sin(segProgress * .pi) * (1.0 - segProgress) * 25.0 * (0.3 + t * 0.7)
+                let perpAngle = strikeAngle + .pi / 2
+                var target = lerpPoint(coiled, extended, min(1.0, easedProgress))
+                target.x += cos(perpAngle) * lateralWave
+                target.y += sin(perpAngle) * lateralWave
+
+                targets[i] = target
             }
 
         case .cracking:
-            // Hold at full extension with slight overshoot on tip
+            // Hold at full extension with whip-snap overshoot
+            let crackProgress = min(1.0, stateTime / crackHoldTime)
             for i in 0..<segmentCount {
                 let t = CGFloat(i) / CGFloat(segmentCount - 1)
                 var ext = extendedPosition(index: i, mouse: mousePos)
-                // Tip overshoot
-                if t > 0.8 {
-                    let overshoot = (t - 0.8) / 0.2 * 15.0
+                // Tip overshoot — the "crack" is the tip exceeding the speed of sound
+                if t > 0.7 {
+                    let tipFactor = (t - 0.7) / 0.3
+                    let overshoot = tipFactor * tipFactor * 22.0 * (1.0 - crackProgress * 0.3)
                     ext.x += cos(strikeAngle) * overshoot
                     ext.y += sin(strikeAngle) * overshoot
+                    // Slight upward flick at the very tip
+                    if t > 0.9 {
+                        let flickFactor = (t - 0.9) / 0.1
+                        ext.y += flickFactor * 8.0 * (1.0 - crackProgress)
+                    }
                 }
                 targets[i] = ext
             }
@@ -248,14 +326,25 @@ class WhipAnimator {
             let progress = stateTime / recoilTime  // 0 to 1
             for i in 0..<segmentCount {
                 let t = CGFloat(i) / CGFloat(segmentCount - 1)
-                // Tip recoils first (snaps back), handle section follows
-                let segDelay = (1.0 - t) * 0.35
+                // Tip snaps back first, handle section follows
+                let segDelay = (1.0 - t) * 0.30
                 let segProgress = clamp(progress * 1.8 - segDelay, 0, 1)
                 let easedProgress = easeInOutCubic(segProgress)
 
                 let extended = extendedPosition(index: i, mouse: mousePos)
                 let coiled = coiledPosition(index: i, mouse: mousePos, phase: idlePhase)
-                targets[i] = lerpPoint(extended, coiled, easedProgress)
+                var target = lerpPoint(extended, coiled, easedProgress)
+
+                // Elastic overshoot: whip bounces past coiled position then settles
+                if segProgress > 0.6 {
+                    let bouncePhase = (segProgress - 0.6) / 0.4
+                    let bounce = sin(bouncePhase * .pi * 2.5) * (1.0 - bouncePhase) * 8.0 * t
+                    let perpAngle = strikeAngle + .pi / 2
+                    target.x += cos(perpAngle) * bounce
+                    target.y += sin(perpAngle) * bounce
+                }
+
+                targets[i] = target
             }
         }
 
@@ -267,40 +356,59 @@ class WhipAnimator {
     func coiledPosition(index i: Int, mouse: CGPoint, phase: CGFloat) -> CGPoint {
         let t = CGFloat(i) / CGFloat(segmentCount - 1)
 
-        // Breathing animation
-        let breathe = 1.0 + sin(phase * 1.8) * 0.04
+        // === Handle section (first 18%): stiff rod, angled down-right ===
+        let handleAngle: CGFloat = -0.45  // ~26° below horizontal-right
+        let handleLen: CGFloat = 45
 
-        // Handle section (first 15%): straight down-right from cursor
-        if t < 0.15 {
-            let handleT = t / 0.15
-            let handleAngle: CGFloat = -0.5  // ~30 degrees below horizontal-right
-            let handleLen: CGFloat = 25 * handleT
+        if t < 0.18 {
+            let ht = t / 0.18
             return CGPoint(
-                x: mouse.x + cos(handleAngle) * handleLen,
-                y: mouse.y + sin(handleAngle) * handleLen
+                x: mouse.x + cos(handleAngle) * handleLen * ht,
+                y: mouse.y + sin(handleAngle) * handleLen * ht
             )
         }
 
-        // Coiled section (85% of whip): loops below handle
-        let coilT = (t - 0.15) / 0.85  // 0 to 1 within coil section
-        let handleEnd = CGPoint(
-            x: mouse.x + cos(-0.5) * 25,
-            y: mouse.y + sin(-0.5) * 25
-        )
+        // Handle end
+        let hx = mouse.x + cos(handleAngle) * handleLen
+        let hy = mouse.y + sin(handleAngle) * handleLen
 
-        // Spiral parameters
-        let angle = coilT * coilLoops * 2 * .pi + phase * 0.5
-        let radius = (coilRadius - coilT * 6) * breathe  // slightly tighter toward end
-        // Vertical offset: coil hangs down progressively
-        let sag = coilT * 18
+        // === Loop section: single smooth circle ===
+        // Place circle center perpendicular to handle direction (right side of travel)
+        // This guarantees smooth tangent where handle meets the loop.
+        let loopRadius: CGFloat = 38
+        let centerAngle = handleAngle - .pi / 2  // 90° clockwise from handle direction
+        let cx = hx + cos(centerAngle) * loopRadius
+        let cy = hy + sin(centerAngle) * loopRadius
 
-        // Sway based on mouse movement
-        let swayX = mouseVelX * 0.3 * (1.0 - coilT)
+        // Start angle: from center back to handle end
+        let startAngle = atan2(hy - cy, hx - cx)
 
-        return CGPoint(
-            x: handleEnd.x + cos(angle) * radius + swayX,
-            y: handleEnd.y + sin(angle) * radius - sag
-        )
+        let loopT = (t - 0.18) / 0.82  // 0..1 within loop
+
+        // Trace ~380° clockwise: slightly more than full circle
+        // so the thin tip overlaps and runs inside the thick start
+        let loopArc: CGFloat = 6.65
+        let angle = startAngle - loopT * loopArc
+
+        // Tip section (last 20%) drifts inward — creates visible inner track
+        // like in the reference photo where thin fall/cracker runs inside the main loop
+        let radiusFactor: CGFloat
+        if loopT > 0.80 {
+            let tipT = (loopT - 0.80) / 0.20
+            radiusFactor = 1.0 - tipT * 0.18  // tip drifts 18% inward
+        } else {
+            radiusFactor = 1.0
+        }
+
+        let px = cx + cos(angle) * loopRadius * radiusFactor
+        let py = cy + sin(angle) * loopRadius * radiusFactor
+
+        // Mouse sway: only on lighter tip, very subtle
+        let swayFactor = loopT * loopT
+        let swayX = mouseVelX * 0.25 * swayFactor
+        let swayY = mouseVelY * 0.10 * swayFactor
+
+        return CGPoint(x: px + swayX, y: py + swayY)
     }
 
     // MARK: Extended Position (full strike shape)
@@ -384,6 +492,11 @@ class WhipDrawingView: NSView {
         ctx.setShouldAntialias(true)
         ctx.setLineCap(.round)
         ctx.setLineJoin(.round)
+
+        // Apply screen shake
+        if anim.shakeIntensity > 0.1 {
+            ctx.translateBy(x: anim.shakeOffset.x, y: anim.shakeOffset.y)
+        }
 
         // ── Motion blur trails (during strike) ──
         if anim.isCracking || anim.tipSpeed > 8 {
@@ -643,6 +756,19 @@ class CrackEffectWindow: NSWindow {
         layer.addSublayer(flash)
         addAnim(flash, "opacity", from: 1.0, to: 0.0, dur: 0.25)
         addAnim(flash, "transform.scale", from: 0.3, to: 3.0, dur: 0.25)
+
+        // Shockwave ring
+        let ringSize: CGFloat = 12
+        let ring = CAShapeLayer()
+        ring.frame = CGRect(x: center.x - ringSize/2, y: center.y - ringSize/2, width: ringSize, height: ringSize)
+        ring.path = CGPath(ellipseIn: CGRect(x: 0, y: 0, width: ringSize, height: ringSize), transform: nil)
+        ring.fillColor = nil
+        ring.strokeColor = NSColor(red: 1, green: 0.7, blue: 0.3, alpha: 0.7).cgColor
+        ring.lineWidth = 2.5
+        layer.addSublayer(ring)
+        addAnim(ring, "transform.scale", from: 1.0, to: 12.0, dur: 0.35)
+        addAnim(ring, "opacity", from: 0.8, to: 0.0, dur: 0.35)
+        addAnim(ring, "lineWidth", from: 2.5, to: 0.3, dur: 0.35)
 
         // Sparks
         let colors: [NSColor] = [.orange, .yellow, .white,
@@ -924,13 +1050,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         whipOverlay.triggerCrack()
         crackCount += 1
 
-        // Show sparks at whip tip position after strike delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-            // Spark at tip of whip (approximate: forward from click point)
-            let angle = self.whipOverlay.whipAnimator.strikeAngle
-            let tipX = point.x + cos(angle) * 160
-            let tipY = point.y + sin(angle) * 160
-            self.crackWindow.showCrack(at: NSPoint(x: tipX, y: tipY))
+        // Show sparks at actual whip tip position when crack happens
+        let crackDelay = Double(whipOverlay.whipAnimator.windupTime + whipOverlay.whipAnimator.strikeTime)
+        DispatchQueue.main.asyncAfter(deadline: .now() + crackDelay) {
+            // Get the real tip position from the animator
+            let tipPos = self.whipOverlay.whipAnimator.positions.last ?? point
+            // Convert from view coordinates to screen coordinates
+            let screenTip = self.whipOverlay.drawingView.convert(tipPos, to: nil)
+            let windowTip = self.whipOverlay.convertPoint(toScreen: screenTip)
+            self.crackWindow.showCrack(at: windowTip)
         }
 
         if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: \(crackCount)" }
