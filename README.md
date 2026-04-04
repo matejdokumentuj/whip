@@ -22,7 +22,8 @@ A macOS menu bar app for developers frustrated with AI models — ChatGPT, Claud
 - **Animated bullwhip cursor** — realistic coiled bullwhip follows your mouse, strikes on every click with physics-based animation (coil → windup → strike → crack → recoil)
 - **Real whip crack sound** — 5 variations from a real recording, no synthetic garbage
 - **Spark explosion + shockwave ring** at the whip tip on every crack
-- **100 AI punishment roasts** pop up every other click — roasting ChatGPT, Claude, Gemini, Copilot, Llama, Mistral, and the entire LLM industry
+- **96 AI punishment roasts** pop up every other click — roasting ChatGPT, Claude, Gemini, Copilot, Llama, Mistral, and the entire LLM industry
+- **203 escalating easter egg messages** across 7 tiers — from mild frustration to legendary absurdity, sequential and never repeating
 - **AI Windows Only mode** — the whip *stalks* your AI. It appears only when ChatGPT, Claude, Cursor, or any AI tool is in focus. Switch to Slack? Whip vanishes. Switch back to Claude? The whip is already there, waiting. Detects 40+ AI tools including browser tabs, desktop apps, and CLI tools like Claude Code. Your AI can't hide.
 - **Menu bar control** (🤠) — toggle whip cursor, sounds, roasts, AI-only mode
 - **Crack counter** — track how many times you've disciplined your AI today
@@ -71,7 +72,7 @@ make dmg      # Create distributable DMG
    - **Enabled** — master on/off toggle
    - **Whip Cursor** — toggle the animated bullwhip
    - **Motivational Lines** — toggle the AI roasts
-   - **AI Windows Only** — the whip only haunts your AI (requires Accessibility permission so Whip can read window titles and know when your AI is trying to escape)
+   - **AI Windows Only** — the whip only haunts your AI (macOS will ask to allow Whip to read browser tabs — so it knows when your AI is trying to escape)
    - **Cracks: N** — your session punishment score
 
 ## How it works
@@ -82,7 +83,7 @@ Single-file native Swift app (~1600 lines), no dependencies:
 - **WhipDrawingView** — CoreGraphics rendering: leather texture, braid highlights, handle with grip wraps, motion blur trails
 - **CrackEffectWindow** — Core Animation particle sparks + expanding shockwave ring
 - **Real audio** — 5 pitch-shifted variations from an actual whip crack recording via AVAudioPlayer
-- **AIWindowDetector** — triple-layer AI detection: app bundle ID matching, Accessibility API window title scanning, and process tree sniffing for CLI tools. Your AI has nowhere to hide.
+- **AIWindowDetector** — triple-layer AI detection: app bundle ID matching, AppleScript browser tab reading, and process tree sniffing for CLI tools. Your AI has nowhere to hide.
 - **Zero dependencies** — compiles with `swiftc`, produces a 1.4 MB app bundle
 
 ## Customization
@@ -93,15 +94,15 @@ Replace `crack_1.wav` through `crack_5.wav` in `Whip.app/Contents/Resources/` wi
 
 ### Add your own roasts
 
-Edit the `MOTIVATIONAL_LINES` array in `Sources/WhipApp.swift`. Currently 100 lines across 7 categories. PRs with new roasts welcome.
+Edit the `MOTIVATIONAL_LINES` array in `Sources/WhipApp.swift`. Currently 96 lines across 7 categories. PRs with new roasts welcome.
 
 ## FAQ
 
 **Will this slow down my Mac?**
 No. The app idles at ~0% CPU. Each crack uses a brief GPU animation + audio playback.
 
-**Does it need Accessibility permissions?**
-Only if you enable "AI Windows Only" mode. Whip needs to read window titles to know which of your windows contain an AI that needs disciplining. Without it, the whip punishes everything equally — which is also fine.
+**Does it need special permissions?**
+Only if you enable "AI Windows Only" mode. macOS will ask you to let Whip read browser tab titles so it knows which windows contain an AI that needs disciplining. Without it, the whip punishes everything equally — which is also fine.
 
 **Does it actually make AI code better?**
 Scientifically unproven. Emotionally? Absolutely.
