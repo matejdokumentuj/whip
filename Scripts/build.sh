@@ -70,6 +70,8 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>MIT License</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Whip needs to read browser tab titles to detect AI windows.</string>
 </dict>
 </plist>
 PLIST

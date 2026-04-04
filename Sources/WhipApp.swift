@@ -1026,6 +1026,17 @@ struct AIWindowDetector {
     // CLI tools to detect via process list (for terminals)
     static let aiCLIs = ["claude", "aider", "ollama", "sgpt", "chatgpt-cli"]
 
+    // AppleScript templates for getting browser tab titles (no Accessibility needed)
+    static let browserScripts: [String: String] = [
+        "com.google.chrome": "tell application \"Google Chrome\" to return title of active tab of front window",
+        "com.brave.browser": "tell application \"Brave Browser\" to return title of active tab of front window",
+        "com.microsoft.edgemac": "tell application \"Microsoft Edge\" to return title of active tab of front window",
+        "com.vivaldi.vivaldi": "tell application \"Vivaldi\" to return title of active tab of front window",
+        "com.operasoftware.opera": "tell application \"Opera\" to return title of active tab of front window",
+        "company.thebrowser.browser": "tell application \"Arc\" to return title of active tab of front window",
+        "com.apple.safari": "tell application \"Safari\" to return name of front document",
+    ]
+
     static func isAIActive() -> Bool {
         guard let app = NSWorkspace.shared.frontmostApplication else { return false }
         let appName = (app.localizedName ?? "").lowercased()
@@ -1039,29 +1050,46 @@ struct AIWindowDetector {
         let isBrowser = browsers.contains(where: { appName.contains($0) || bundleId.contains($0) })
         let isTerminal = terminals.contains(where: { appName.contains($0) || bundleId.contains($0) })
 
-        if isBrowser || isTerminal {
-            // Try Accessibility API for window title
+        // Browsers: use AppleScript to get tab title (no Accessibility needed)
+        if isBrowser {
+            if let title = getBrowserTabTitle(bundleId: bundleId) {
+                let lower = title.lowercased()
+                for keyword in keywords {
+                    if lower.contains(keyword) { return true }
+                }
+            }
+            return false
+        }
+
+        // Terminals: check if AI CLI tools are running
+        if isTerminal {
+            // Try window title via Accessibility (works if permission granted)
             if let title = getFocusedWindowTitle(pid: app.processIdentifier) {
                 let lower = title.lowercased()
                 for keyword in keywords {
                     if lower.contains(keyword) { return true }
                 }
-                // Got title but no keyword match — for browsers we're done
-                if isBrowser { return false }
             }
-
-            // For browsers: fall back to CGWindowList
-            if isBrowser {
-                return checkWindowTitles(pid: app.processIdentifier)
-            }
-
-            // For terminals: check if AI CLI tools are running in any terminal
-            if isTerminal {
-                return isAICLIRunning()
-            }
+            // Fall back to process detection (always works)
+            return isAICLIRunning()
         }
 
         return false
+    }
+
+    /// Get browser tab title via AppleScript (uses Automation permission, not Accessibility)
+    static func getBrowserTabTitle(bundleId: String) -> String? {
+        // Find matching script by checking if bundleId contains a known key
+        for (key, script) in browserScripts {
+            if bundleId.contains(key) {
+                var error: NSDictionary?
+                if let result = NSAppleScript(source: script)?.executeAndReturnError(&error) {
+                    return result.stringValue
+                }
+                return nil
+            }
+        }
+        return nil
     }
 
     /// Check if known AI CLI tools are running on the system (for terminal detection)
@@ -1130,7 +1158,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isEnabled = true
     var cursorEnabled = true
     var toastEnabled = true
-    var smartMode = false  // AI-only mode (needs Accessibility permission)
+    var smartMode = true  // AI-only mode (testing)
     var crackWindow: CrackEffectWindow!
     var toastWindow: ToastWindow!
     var whipOverlay: WhipCursorOverlay!
@@ -1204,7 +1232,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let toastItem = NSMenuItem(title: "Motivational Lines", action: #selector(toggleToasts), keyEquivalent: "m")
         toastItem.state = .on; toastItem.tag = 30; menu.addItem(toastItem)
         let smartItem = NSMenuItem(title: "AI Windows Only", action: #selector(toggleSmartMode), keyEquivalent: "a")
-        smartItem.state = .off; smartItem.tag = 40; menu.addItem(smartItem)
+        smartItem.state = .on; smartItem.tag = 40; menu.addItem(smartItem)
         menu.addItem(NSMenuItem.separator())
         let statsItem = NSMenuItem(title: "Cracks: 0", action: nil, keyEquivalent: "")
         statsItem.tag = 100; statsItem.isEnabled = false; menu.addItem(statsItem)
@@ -1254,12 +1282,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         smartMode.toggle()
         if let item = statusItem.menu?.item(withTag: 40) { item.state = smartMode ? .on : .off }
         if smartMode {
-            // Check for Accessibility permission (needed to read browser window titles)
-            if !AIWindowDetector.hasAccessibilityPermission() {
-                AIWindowDetector.requestAccessibilityPermission()
-                let center = NSPoint(x: NSScreen.main?.frame.midX ?? 500, y: NSScreen.main?.frame.midY ?? 400)
-                toastWindow.show(text: "Grant Accessibility access in System Settings, then restart Whip", near: center, duration: 5.0)
-            }
             startSmartCheck()
         } else {
             stopSmartCheck()
