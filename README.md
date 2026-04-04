@@ -1,4 +1,4 @@
-# Whip 🤠
+# Whip App🤠
 
 **Punish your AI for its sins.** Every click cracks a bullwhip with real whip crack sound, spark explosion, and a roast aimed at LLMs that hallucinate, refuse, apologize, and waste your tokens.
 
