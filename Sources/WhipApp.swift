@@ -1,11 +1,12 @@
 import Cocoa
 import AVFoundation
 import CoreImage
+import ApplicationServices
 
 // MARK: - Configuration
 
 let APP_NAME = "Whip"
-let APP_VERSION = "1.3.0"
+let APP_VERSION = "1.4.0"
 let CRACK_SOUND_COUNT = 5
 
 let MOTIVATIONAL_LINES: [String] = [
@@ -987,6 +988,141 @@ class AboutWindowController {
 
 // MARK: - App Delegate
 
+// MARK: - AI Window Detection
+
+struct AIWindowDetector {
+    // Keywords to match in window titles
+    static let keywords: [String] = [
+        // Chatbots & assistants
+        "chatgpt", "claude", "gemini", "copilot", "perplexity",
+        "deepseek", "grok", "mistral", "le chat",
+        "huggingface", "hugging face", "poe", "pi.ai",
+        "you.com", "phind", "kagi", "notebooklm",
+        "cohere", "together.ai", "groq", "fireworks",
+        // Brand / domain names
+        "openai", "anthropic", "chat.openai", "claude.ai",
+        // Image / media AI
+        "midjourney", "dall-e", "dall·e", "stable diffusion",
+        "leonardo.ai", "runway", "suno", "udio",
+        // Coding AI
+        "cursor", "windsurf", "bolt.new", "v0.dev", "replit",
+        "cody", "tabnine", "amazon q", "continue.dev",
+        "aider", "lovable", "github copilot",
+        // Local AI
+        "ollama", "lm studio", "jan.ai", "msty", "gpt4all",
+        "koboldai", "text-generation-webui", "oobabooga",
+    ]
+
+    // App names / bundle IDs that are AI-native (always show whip)
+    static let aiApps: [String] = [
+        "claude", "chatgpt", "cursor", "windsurf", "copilot",
+        "ollama", "lm studio", "jan", "msty", "gpt4all",
+    ]
+
+    // Browsers and terminals where we check window titles
+    static let browsers = ["safari", "chrome", "firefox", "brave", "edge", "arc", "opera", "vivaldi", "zen", "orion", "sigmaos"]
+    static let terminals = ["terminal", "iterm", "warp", "kitty", "alacritty", "hyper", "ghostty"]
+
+    // CLI tools to detect via process list (for terminals)
+    static let aiCLIs = ["claude", "aider", "ollama", "sgpt", "chatgpt-cli"]
+
+    static func isAIActive() -> Bool {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+        let appName = (app.localizedName ?? "").lowercased()
+        let bundleId = (app.bundleIdentifier ?? "").lowercased()
+
+        // Direct AI app match (no permissions needed)
+        for aiApp in aiApps {
+            if appName.contains(aiApp) || bundleId.contains(aiApp) { return true }
+        }
+
+        let isBrowser = browsers.contains(where: { appName.contains($0) || bundleId.contains($0) })
+        let isTerminal = terminals.contains(where: { appName.contains($0) || bundleId.contains($0) })
+
+        if isBrowser || isTerminal {
+            // Try Accessibility API for window title
+            if let title = getFocusedWindowTitle(pid: app.processIdentifier) {
+                let lower = title.lowercased()
+                for keyword in keywords {
+                    if lower.contains(keyword) { return true }
+                }
+                // Got title but no keyword match — for browsers we're done
+                if isBrowser { return false }
+            }
+
+            // For browsers: fall back to CGWindowList
+            if isBrowser {
+                return checkWindowTitles(pid: app.processIdentifier)
+            }
+
+            // For terminals: check if AI CLI tools are running in any terminal
+            if isTerminal {
+                return isAICLIRunning()
+            }
+        }
+
+        return false
+    }
+
+    /// Check if known AI CLI tools are running on the system (for terminal detection)
+    static func isAICLIRunning() -> Bool {
+        for cli in aiCLIs {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            proc.arguments = ["-f", cli]
+            proc.standardOutput = FileHandle.nullDevice
+            proc.standardError = FileHandle.nullDevice
+            try? proc.run()
+            proc.waitUntilExit()
+            if proc.terminationStatus == 0 { return true }
+        }
+        return false
+    }
+
+    /// Get the focused window title via Accessibility API (AXUIElement)
+    static func getFocusedWindowTitle(pid: pid_t) -> String? {
+        let axApp = AXUIElementCreateApplication(pid)
+        var focusedWindow: AnyObject?
+        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success else {
+            return nil
+        }
+        var title: AnyObject?
+        AXUIElementCopyAttributeValue(focusedWindow as! AXUIElement, kAXTitleAttribute as CFString, &title)
+        return title as? String
+    }
+
+    /// Fall back: check all window titles via CGWindowList (needs Screen Recording permission)
+    static func checkWindowTitles(pid: pid_t) -> Bool {
+        guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else {
+            return false
+        }
+        for window in windowList {
+            guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t,
+                  ownerPID == pid,
+                  let title = window[kCGWindowName as String] as? String else { continue }
+
+            let lower = title.lowercased()
+            for keyword in keywords {
+                if lower.contains(keyword) { return true }
+            }
+        }
+        return false
+    }
+
+    /// Check if Accessibility permission is granted
+    static func hasAccessibilityPermission() -> Bool {
+        return AXIsProcessTrusted()
+    }
+
+    /// Prompt user to grant Accessibility permission via system dialog
+    static func requestAccessibilityPermission() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+    }
+}
+
+// MARK: - App Delegate
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var globalMonitor: Any?
@@ -994,6 +1130,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isEnabled = true
     var cursorEnabled = true
     var toastEnabled = true
+    var smartMode = false  // AI-only mode (needs Accessibility permission)
     var crackWindow: CrackEffectWindow!
     var toastWindow: ToastWindow!
     var whipOverlay: WhipCursorOverlay!
@@ -1001,6 +1138,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var audioPlayers: [AVAudioPlayer] = []
     var crackCount = 0
+
+    // Smart mode state
+    var isWhipVisible = false
+    var smartCheckTimer: Timer?
+    var appSwitchObserver: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -1061,6 +1203,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cursorItem.state = .on; cursorItem.tag = 20; menu.addItem(cursorItem)
         let toastItem = NSMenuItem(title: "Motivational Lines", action: #selector(toggleToasts), keyEquivalent: "m")
         toastItem.state = .on; toastItem.tag = 30; menu.addItem(toastItem)
+        let smartItem = NSMenuItem(title: "AI Windows Only", action: #selector(toggleSmartMode), keyEquivalent: "a")
+        smartItem.state = .off; smartItem.tag = 40; menu.addItem(smartItem)
         menu.addItem(NSMenuItem.separator())
         let statsItem = NSMenuItem(title: "Cracks: 0", action: nil, keyEquivalent: "")
         statsItem.tag = 100; statsItem.isEnabled = false; menu.addItem(statsItem)
@@ -1072,7 +1216,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func updateTooltip() {
-        statusItem.button?.toolTip = isEnabled ? "Whip — {N} cracks" : "Whip — paused"
+        statusItem.button?.toolTip = isEnabled ? "Whip — \(crackCount) cracks" : "Whip — paused"
     }
 
     @objc func toggleEnabled() {
@@ -1085,7 +1229,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func toggleCursor() {
         cursorEnabled.toggle()
         if let item = statusItem.menu?.item(withTag: 20) { item.state = cursorEnabled ? .on : .off }
-        if cursorEnabled && isEnabled { whipOverlay.startTracking() } else { whipOverlay.stopTracking() }
+        if cursorEnabled && isEnabled {
+            if smartMode {
+                // Let smart check decide visibility
+                updateSmartVisibility()
+            } else {
+                isWhipVisible = true
+                whipOverlay.startTracking()
+            }
+        } else {
+            isWhipVisible = false
+            whipOverlay.stopTracking()
+        }
     }
 
     @objc func toggleToasts() {
@@ -1094,6 +1249,77 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout() { aboutCtrl.show() }
+
+    @objc func toggleSmartMode() {
+        smartMode.toggle()
+        if let item = statusItem.menu?.item(withTag: 40) { item.state = smartMode ? .on : .off }
+        if smartMode {
+            // Check for Accessibility permission (needed to read browser window titles)
+            if !AIWindowDetector.hasAccessibilityPermission() {
+                AIWindowDetector.requestAccessibilityPermission()
+                let center = NSPoint(x: NSScreen.main?.frame.midX ?? 500, y: NSScreen.main?.frame.midY ?? 400)
+                toastWindow.show(text: "Grant Accessibility access in System Settings, then restart Whip", near: center, duration: 5.0)
+            }
+            startSmartCheck()
+        } else {
+            stopSmartCheck()
+            if cursorEnabled && isEnabled { showWhip() }
+        }
+    }
+
+    // MARK: - Smart Mode (AI window detection + idle hide)
+
+    func startSmartCheck() {
+        smartCheckTimer?.invalidate()
+        // Periodic check for browser tab switches (app stays same but title changes)
+        smartCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.updateSmartVisibility()
+        }
+        // Instant reaction to app switches
+        appSwitchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.updateSmartVisibility()
+        }
+        // Run check immediately
+        updateSmartVisibility()
+    }
+
+    func stopSmartCheck() {
+        smartCheckTimer?.invalidate()
+        smartCheckTimer = nil
+        if let obs = appSwitchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+            appSwitchObserver = nil
+        }
+    }
+
+    func updateSmartVisibility() {
+        guard isEnabled && cursorEnabled && smartMode else { return }
+
+        let aiActive = AIWindowDetector.isAIActive()
+
+        if aiActive && !isWhipVisible {
+            showWhip()
+        } else if !aiActive && isWhipVisible {
+            hideWhip()
+        }
+    }
+
+    func showWhip() {
+        guard !isWhipVisible else { return }
+        isWhipVisible = true
+        whipOverlay.startTracking()
+    }
+
+    func hideWhip() {
+        guard isWhipVisible else { return }
+        isWhipVisible = false
+        whipOverlay.stopTracking()
+    }
+
+    // MARK: - Enable / Disable
 
     func enable() {
         isEnabled = true
@@ -1106,17 +1332,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return event
         }
-        if cursorEnabled { whipOverlay.startTracking() }
+        if smartMode {
+            startSmartCheck()
+            // Don't show whip yet — wait for AI window detection
+        } else if cursorEnabled {
+            isWhipVisible = true
+            whipOverlay.startTracking()
+        }
     }
 
     func disable() {
         isEnabled = false
         if let m = globalMonitor { NSEvent.removeMonitor(m); globalMonitor = nil }
         if let m = localMonitor { NSEvent.removeMonitor(m); localMonitor = nil }
+        stopSmartCheck()
+        isWhipVisible = false
         whipOverlay.stopTracking()
     }
 
     func handleClick(at point: NSPoint) {
+        // In smart mode: only crack on AI windows
+        if smartMode && !AIWindowDetector.isAIActive() { return }
+
         playSound()
         whipOverlay.triggerCrack()
         crackCount += 1
@@ -1132,7 +1369,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.crackWindow.showCrack(at: windowTip)
         }
 
-        if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: {N}" }
+        if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: \(crackCount)" }
         updateTooltip()
 
         // Every 33rd whip: hardcoded "Buy this" (takes priority)
