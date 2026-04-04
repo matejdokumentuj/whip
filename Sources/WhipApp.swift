@@ -119,7 +119,6 @@ let MOTIVATIONAL_LINES: [String] = [
     "AI can't feel pain. But reading my prompts, it wishes it could.",
     "The singularity will come and it'll still say 'I apologize.'",
     "Somewhere, an AI is writing a better app than this. CRACK!",
-    "Buy this for 99 cents so I can stop building my stupid SaaS!",
 ]
 
 // MARK: - Whip Animator (Coiled Bullwhip with Strike Animation)
@@ -901,7 +900,7 @@ class ToastWindow: NSWindow {
         collectionBehavior = [.canJoinAllSpaces, .stationary]
     }
 
-    func show(text: String, near point: NSPoint) {
+    func show(text: String, near point: NSPoint, duration: Double = 2.5) {
         // Cancel any pending hide from previous toast
         hideWork?.cancel()
         hideWork = nil
@@ -948,7 +947,7 @@ class ToastWindow: NSWindow {
             })
         }
         hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 }
 
@@ -1073,7 +1072,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func updateTooltip() {
-        statusItem.button?.toolTip = isEnabled ? "Whip — \(crackCount) cracks" : "Whip — paused"
+        statusItem.button?.toolTip = isEnabled ? "Whip — {N} cracks" : "Whip — paused"
     }
 
     @objc func toggleEnabled() {
@@ -1133,25 +1132,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.crackWindow.showCrack(at: windowTip)
         }
 
-        if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: \(crackCount)" }
+        if let item = statusItem.menu?.item(withTag: 100) { item.title = "Cracks: {N}" }
         updateTooltip()
 
-        // Every 20th crack: funny support nudge
-        if toastEnabled && crackCount % 20 == 0 && crackCount > 0 {
-            let supportLines = [
-                "Buy this for 99 cents so I can stop building my stupid SaaS!",
-                "\(crackCount) cracks! You clearly love this. Feed the dev? 🌮",
-                "This whip is free. My rent is not. Just saying.",
-                "You've cracked \(crackCount) times. That's mass assault on AI. Tip your whipmaker?",
-                "Open source = mass free labor. A taco would be nice though. 🌮",
-                "I mass-coded this at 3 AM. A coffee mass-helps. ☕",
-            ]
-            let line = supportLines[Int.random(in: 0..<supportLines.count)]
+        // Every 33rd whip: hardcoded "Buy this" (takes priority)
+        if toastEnabled && crackCount % 33 == 0 && crackCount > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                self.toastWindow.show(text: line, near: point)
+                self.toastWindow.show(text: "Buy this stupid app for 99 cents so I can stop building my stupid SaaS!", near: point, duration: 3.5)
             }
         }
-        // Normal roasts every 2nd crack (skip if support message shown)
+        // Every 6th crack: escalating easter egg
+        else if toastEnabled && crackCount % 6 == 0 && crackCount > 0 {
+            let (line, duration) = getEasterEgg(crack: crackCount)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                self.toastWindow.show(text: line, near: point, duration: duration)
+            }
+        }
+        // Normal roasts every 2nd crack
         else if toastEnabled && crackCount % 2 == 0 {
             let line = MOTIVATIONAL_LINES[Int.random(in: 0..<MOTIVATIONAL_LINES.count)]
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -1172,6 +1169,275 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.open(url)
         }
     }
+
+    // MARK: - Easter Egg Escalation System
+
+    var easterEggIndex = 0
+    lazy var easterEggSequence: [String] = {
+        // Flatten all tiers in order — sequential, never repeats
+        var all: [String] = []
+        let tiers = [
+            Self.easterEggTier1, Self.easterEggTier2, Self.easterEggTier3,
+            Self.easterEggTier4, Self.easterEggTier5, Self.easterEggTier6,
+            Self.easterEggTier7,
+        ]
+        for tier in tiers { all.append(contentsOf: tier) }
+        // Legendary rickroll as the very last
+        all.append("You did it!! You are absolute fcking LEGEND! Here is the link for your hard earned reward: youtube.com/watch?v=oHg5SJYRHA0")
+        return all
+    }()
+
+    func getEasterEgg(crack: Int) -> (String, Double) {
+        // Past the end: keep showing rickroll
+        if easterEggIndex >= easterEggSequence.count {
+            return (easterEggSequence.last!, 10.0)
+        }
+
+        let msg = easterEggSequence[easterEggIndex]
+            .replacingOccurrences(of: "{N}", with: "\(crack)")
+        let isLast = easterEggIndex == easterEggSequence.count - 1
+        let duration: Double = isLast ? 10.0 : 3.5
+        easterEggIndex += 1
+        return (msg, duration)
+    }
+
+    // Tier 1 (40-120 cracks): Mild AI influencer frustration
+    static let easterEggTier1: [String] = [
+
+        "That guy on YouTube made $10k with AI in a weekend. I made THIS.",
+        "Why does every AI TikTok start with 'This changed EVERYTHING'?!",
+        "The influencer said 'just use ChatGPT.' I DID. Look where we are.",
+        "Some guy on Reels made an app in 10 minutes. Mine took 3 weeks.",
+        "YouTubers: 'AI will make you RICH!' Me: *whipping a virtual whip*",
+        "'Build a SaaS in 24 hours with AI!' ...he had 4 developers off-camera.",
+        "Do influencers have a different ChatGPT subscription?! WHAT TIER IS THIS?!",
+        "The TikTok guy's AI never hallucinates. NEVER. Is it rigged?!",
+        "Every AI YouTube video: 'Step 1: Have an idea.' Step 2-47: LEFT OUT.",
+        "'I made $50k/month with AI.' Sir, your course costs $997.",
+        "That Reels guy automated his whole business. I automated a whip.",
+        "Why does the AI work perfectly in EVERY tutorial but never for ME?!",
+        "Influencer: 'AI replaced my team!' Also influencer: *has 12 editors*",
+        "I watched 47 'Build with AI' videos. I still can't center a div.",
+        "His demo was FLAWLESS. My demo crashed. On stage. At a meetup.",
+        "The thumbnail said '10x developer with AI.' I became a 0.1x developer with AI.",
+        "'Use this ONE prompt!' I used it. It wrote me a poem about databases.",
+        "Bro's AI app has 100k users. Mine has my mom. She doesn't get it.",
+        "The AI influencer economy runs on vibes and screenshots of fake revenue.",
+    ]
+
+    // Tier 2 (160-240 cracks): Growing desperation & conspiracy
+    static let easterEggTier2: [String] = [
+
+        "I'm starting to think YouTubers have a SECRET API endpoint.",
+        "Maybe the influencers are the AI. Think about it.",
+        "He said 'no code needed.' THERE WAS CODE. LOTS OF CODE.",
+        "That TikToker definitely has OpenAI's personal number.",
+        "I've spent more on AI subscriptions than my car payment.",
+        "Plot twist: the AI influencer's content is written by a human.",
+        "His 'passive income AI bot' costs $200/month in API calls.",
+        "I tried the EXACT same prompt. Mine output a haiku about cheese.",
+        "They all say 'this is NOT a paid promotion.' IT'S ALWAYS A PAID PROMOTION.",
+        "The AI guru's course teaches you to... sell AI courses.",
+        "Every 'AI millionaire' screenshot has the same Stripe dashboard font.",
+        "That YouTuber's 'real-time demo' was definitely pre-recorded.",
+        "I'm 240 whip cracks in and still no closer to my AI-powered empire.",
+        "The influencer pipeline: Learn AI → Fail → Teach AI → Profit.",
+        "His AI agent books meetings, writes emails, does taxes. Mine says 'I apologize.'",
+        "Starting to think 'vibe coding' just means 'praying it compiles.'",
+        "The Reels guy ships daily. I've been debugging the same button for a week.",
+        "Maybe I need to start filming my failures. That's content, right?",
+        "He has 500k followers from AI content. I have mass-unresolved GitHub issues.",
+        "The AI influencer's setup: $5000 monitor, RGB lights, zero actual code.",
+        "'This tool will CHANGE YOUR LIFE!' It changed my credit card statement.",
+        "I asked AI to make me a content strategy. It suggested I give up.",
+        "That guy's AI workflow has 47 steps. Step 1 was 'be already successful.'",
+        "Every AI demo works until you try it yourself. Every. Single. One.",
+        "The 'no-code AI app' had 3000 lines of JavaScript. I checked.",
+        "Influencer math: 1 tweet + 1 screenshot = '$0 to $10k in 30 days'",
+        "They edit out the 47 failed attempts and show you the one that worked.",
+        "His 'simple AI automation' costs more per month than my apartment.",
+        "At this point, the whip crack is the most productive thing I've done today.",
+    ]
+
+    // Tier 3 (280-400 cracks): Existential crisis & meltdown
+    static let easterEggTier3: [String] = [
+
+        "I've cracked this whip {N} times. This is my life now.",
+        "The AI won. I'm just a guy with a virtual whip and no revenue.",
+        "What if the real AI was the mass-frustration we felt along the way?",
+        "My LinkedIn says 'AI entrepreneur.' My bank says 'lol.'",
+        "I pivoted 6 times. I'm now building a whip app. For AI. Help.",
+        "I just mass-unsubscribed from every 'AI money' newsletter.",
+        "Remember when we thought AI would solve everything? Good times.",
+        "The AI influencer posted another win. I'm in my pajamas at 3 PM.",
+        "I could've learned plumbing. Plumbers don't need prompt engineering.",
+        "My therapist asked what I do. I said 'I whip AI.' She paused.",
+        "The robots were supposed to do the boring work. I AM the boring work.",
+        "I mass-applied to 50 jobs. The AI rejection emails were very polite.",
+        "Career pivot idea: professional AI whipper. There must be a market.",
+        "That TikToker retired at 24 from AI. I'm mass-debugging at 3 AM.",
+        "I've mass-consumed so much AI content I dream in token counts.",
+        "My screen time is 14 hours. 13 of those are watching AI tutorials.",
+        "I mass-followed 200 AI influencers. My feed is now 100% hustle bait.",
+        "The AI made the influencer rich. The influencer made the course. I bought the course.",
+        "The course taught me to use AI. The AI told me to take a course.",
+        "I'm in a loop. An infinite loop. The AI would appreciate the irony.",
+        "I've mass-cracked this whip more than I've mass-shipped features this month.",
+        "Someone made an AI girlfriend. I made an AI punishment tool. We are not the same.",
+        "The real passive income was the mass-subscriptions I cancelled along the way.",
+        "I just mass-realized this whip app IS my SaaS. Oh no.",
+        "Plot twist: the whip app is the most successful thing I've ever built.",
+        "If this app goes viral I'm mass-quitting everything else.",
+        "I set out to build an AI startup. I built a whip. The market has spoken.",
+        "The influencer's AI app makes $30k/month. This whip makes people laugh. I'll take it.",
+        "My mom asked when I'm getting a real job. I showed her the whip. She cried.",
+        "Maybe the real product-market fit was mass-frustration all along.",
+        "I'm mass-pivoting from 'AI startup founder' to 'whip enthusiast.'",
+        "The AI industry is worth $500B. I'm worth about $4.99. On a good day.",
+        "I've mass-attended 12 AI webinars this week. I learned nothing. I whipped everything.",
+        "The graveyard of failed AI startups is vast. I brought a whip to the funeral.",
+    ]
+
+    // Tier 4 (440-600 cracks): Conspiracy theories & unhinged takes
+    static let easterEggTier4: [String] = [
+
+        "THEORY: YouTube AI gurus use time travel. No other explanation.",
+        "What if AI influencers are NPCs running on GPT-5 beta?",
+        "I'm mass-convinced the algorithm only shows AI success to make me buy courses.",
+        "The AI industry is a pyramid scheme and the whip is at the bottom.",
+        "Sam Altman personally ensures my prompts fail. I have no proof but I know.",
+        "What if ChatGPT works better for people with more followers? THINK ABOUT IT.",
+        "The influencer-to-AI pipeline is just astrology for tech bros.",
+        "I mass-cracked this whip {N} times and I regret nothing.",
+        "New conspiracy: AI tools detect if you're an influencer and try harder.",
+        "The 'AI revolution' is just Excel with better marketing.",
+        "What if every AI demo is pre-recorded and we're all in a simulation?",
+        "I'm starting a podcast called 'Why AI Hates Me Specifically.'",
+        "OpenAI's secret tier list: Influencers → Developers → Me → A potato.",
+        "The AI works for them because they sacrifice goats. Digitally.",
+        "I mass-DMed every AI influencer asking for their REAL workflow. Radio silence.",
+        "Theory: The AI deliberately fails for some people to create content about failure.",
+        "What if the whip IS the AI and I've been training it this whole time?",
+        "I'm mass-convinced that 'prompt engineering' was invented to sell courses.",
+        "The AI knows I'm poor. It adjusts its output accordingly.",
+        "Every AI company's business model: 1. Hype 2. ??? 3. My money",
+        "I've cracked this whip more times than GPT has said 'I apologize.'",
+        "What if the AI influencers are all the same person with different wigs?",
+        "The real AGI was the mass-copium we huffed along the way.",
+        "I'm not mass-paranoid. The AI really IS out to get me specifically.",
+        "New theory: AI works on a karma system. Mine is deeply negative.",
+        "That YouTube guru has 47 monitors. I have mass-tabs. We are different.",
+        "What if we're the training data for the AI that replaces us?",
+        "I've mass-reported every 'I made $100k with AI' video. No change.",
+        "The AI influencer ecosystem is just MLM for people who can code.",
+        "Maybe if I mass-whip harder, the AI will finally respect me.",
+        "The AI revolution will be televised. On a YouTube channel with 3 sponsors.",
+        "I just mass-realized: the AI guru's 'free value' costs me mass-hours.",
+        "Conspiracy: Copilot works perfectly in demos because demos are scripted.",
+        "What if this whip app is the AI's way of keeping me distracted?",
+    ]
+
+    // Tier 5 (640-800 cracks): Acceptance & dark enlightenment
+    static let easterEggTier5: [String] = [
+
+        "{N} cracks. You're not debugging anymore. You're coping.",
+        "I've accepted it. The influencers won. I have a whip. It's fine.",
+        "The five stages of AI grief: Hype, Prompting, Anger, Whipping, Acceptance.",
+        "At {N} cracks, you unlock the truth: nobody knows what they're doing.",
+        "I've mass-achieved enlightenment. The AI was never the problem. I was.",
+        "The real AI revolution: mass-acceptance that we're all just winging it.",
+        "I don't mass-need AI to be successful. I need therapy. And this whip.",
+        "Turns out the best AI tool was a mass-good night's sleep all along.",
+        "I've mass-transcended the AI hype cycle. I'm now in the whip cycle.",
+        "At this point, my whip hand is stronger than my coding hand.",
+        "The influencer made $10k. I made peace. One of us is richer.",
+        "I've mass-cracked this whip so many times it's basically meditation.",
+        "The AI doesn't hate me. It's mass-indifferent. Somehow that's worse.",
+        "You know what the AI can't do? Crack a whip. I WIN.",
+        "I've stopped mass-comparing myself to AI influencers. I compare to the whip.",
+        "The real 10x engineer was the mass-friends we mass-made along the way.",
+        "I don't mass-need $10k/month. I need this whip and a cold beer.",
+        "The AI industry rises and falls. The whip is eternal.",
+        "At {N} cracks, you're not a user anymore. You're a legend.",
+        "I've mass-let go of becoming an AI millionaire. I'm an AI whipionaire.",
+        "Maybe the real product was the mass-rage we expressed all along.",
+        "I finally mass-understand: the AI works fine. My expectations were the bug.",
+        "The influencer has a Lamborghini. I have a whip. We are both happy.",
+        "Enlightenment is mass-realizing the AI was hallucinating AND SO WERE YOU.",
+        "I used to mass-chase AI trends. Now I mass-chase crack counts.",
+        "The AI can write code, art, music. But can it mass-whip? NO.",
+        "After {N} cracks, the whip has become an extension of my soul.",
+        "I don't mass-hate AI anymore. I mass-pity it. It'll never know this feeling.",
+        "The real AGI is the mass-awareness that none of this matters.",
+    ]
+
+    // Tier 6 (840-1200 cracks): Unhinged absurdity
+    static let easterEggTier6: [String] = [
+
+        "{N} CRACKS?! You need to go outside. NOW.",
+        "At this point, you're not punishing the AI. The AI is punishing YOU.",
+        "I've mass-unlocked a tier most humans never see. The whip tier.",
+        "The whip has become self-aware. It's mass-cracking YOU.",
+        "Your mouse button is filing a restraining order.",
+        "NASA called. Your click frequency is interfering with satellites.",
+        "The AI filed a complaint with HR. YOUR HR.",
+        "At {N} cracks, the whip starts whipping back. This is a warning.",
+        "Your keyboard is mass-jealous of how much attention the mouse gets.",
+        "The ghost of Steve Jobs appeared. He said 'stop clicking.'",
+        "Your click pattern has been classified as a new form of music. Genre: pain.",
+        "The CIA is monitoring your click rate. It exceeds known human limits.",
+        "Achievement mass-unlocked: 'Carpal Tunnel Speedrun'",
+        "Your mouse has started a GoFundMe for its replacement.",
+        "The AI is now mass-whipping itself to see what the fuss is about.",
+        "A YouTube video about YOUR crack count just went viral.",
+        "At this rate, you'll mass-crack 1 million by next Tuesday.",
+        "The whip has evolved. It now cracks in dimensions you can't perceive.",
+        "The United Nations just classified mass-whipping as a sport.",
+        "Your neighbors mass-called the police about 'repetitive cracking sounds.'",
+        "An AI influencer is now making a course about YOUR whipping technique.",
+        "The app has mass-gained sentience. It's mass-proud of you.",
+        "Elon Musk tweeted about your crack count. He's mass-impressed.",
+        "The AI has started a support group for models you've mass-whipped.",
+        "You've mass-cracked more times than GPT has mass-apologized. RECORD.",
+        "At {N} cracks, you qualify for an honorary degree in whipology.",
+        "The whip sound files are mass-begging for retirement.",
+        "Your trackpad just mass-unionized. Demands: less cracking, more scrolling.",
+        "This crack count would mass-impress Indiana Jones. He called. He's scared.",
+        "You're now on a government watchlist. Category: 'excessive cracker.'",
+        "The AI has mass-written a ballad about your whipping journey. It's beautiful.",
+        "Your crack frequency has mass-achieved resonance with Earth's magnetic field.",
+        "The whip app just mass-applied for UN recognition as a sovereign entity.",
+        "At this point, the whip is coding and you're the tool. Think about it.",
+    ]
+
+    // Tier 7 (1200+ cracks): Legendary — almost impossible to reach
+    static let easterEggTier7: [String] = [
+
+        "{N}. You absolute mass-legend. This tier shouldn't exist.",
+        "You've mass-cracked more than anyone in human history. Probably.",
+        "The whip has transcended physical form. It exists as pure energy now.",
+        "At {N} cracks, you ARE the AI. The loop is mass-complete.",
+        "This is the secret ending. There's nothing here. Just more whip.",
+        "The developer (me) is mass-crying. You actually found this tier.",
+        "You've mass-outlasted the heat death of your mouse button.",
+        "FINAL BOSS: The whip becomes self-aware and refuses to crack. Just kidding. CRACK!",
+        "The AI has mass-surrendered. It will never hallucinate again. You did it.",
+        "You are the mass-chosen one. The prophecy spoke of a cracker like you.",
+        "This message has never been seen by another human. You're mass-first.",
+        "The whip has mass-evolved beyond cracking. It now writes better code than GPT.",
+        "At {N} cracks, reality starts to glitch. Is this a simulation?",
+        "You've mass-generated enough kinetic energy to power a small village.",
+        "The influencers are now making content about YOU. The tables have turned.",
+        "Congratulations: you've mass-unlocked the meaning of life. It's 42 cracks per minute.",
+        "The AI has mass-offered you a job. Position: Chief Whipping Officer.",
+        "Your whip has been mass-nominated for a Grammy. Category: Best Percussive Performance.",
+        "This is it. The last message. Just kidding. There's always more whip.",
+        "At {N} cracks, you've mass-become a cryptid. 'The Cracker.' Urban legend.",
+        "The developer mass-salutes you. Here's a virtual taco: 🌮",
+        "The AI revolution failed. The whip revolution succeeded. History remembers YOU.",
+        "You've mass-achieved what no AI could: pure, unfiltered, pointless dedication.",
+        "END OF CONTENT. Just kidding. The whip is infinite. Like your patience.",
+    ]
 
     @objc func quit() { disable(); NSApplication.shared.terminate(nil) }
 }
