@@ -133,3 +133,30 @@ No subscriptions. No paywalls. No guilt. Just a mass-caffeinated indie dev who b
 ## License
 
 MIT — do whatever you want with it. Whip it, ship it, roast it.
+
+<details>
+<summary>Legal stuff nobody reads</summary>
+
+### About
+
+Whip is a free macOS menu bar app made by **Matěj Richter** (Czech Republic). It cracks a virtual bullwhip on your screen. That's it. No data collection, no accounts, no cloud, no analytics, no subscriptions.
+
+**Contact:** ekostromsro@gmail.com
+
+### Terms of Use
+
+You get a free app that cracks a whip. You use it at your own risk. If the whip scares your cat, that's on you. The app is provided "as is" without warranty of any kind.
+
+### Privacy Policy
+
+Whip collects exactly **zero** data. No telemetry, no analytics, no crash reports, no cookies, no network requests. The app doesn't even have internet access. Your crack count stays on your Mac and dies when you quit the app. We know less about you than your AI does.
+
+### Refund & Dispute Policy
+
+The app is free. There's nothing to refund. If you sent a voluntary donation via Ko-fi or GitHub Sponsors and want it back — contact us at the email above and we'll sort it out. No questions asked, no whip cracks.
+
+### Cancellation Policy
+
+There's no subscription to cancel. If you donated via Ko-fi or GitHub Sponsors on a recurring basis, you can cancel anytime through their platforms.
+
+</details>
